@@ -42,7 +42,7 @@ void process_task(void *p) {
             int avg = sum / count;
 
             if (printed < 7) {
-                printf("%d \n", avg);
+                printf("%d\n", avg);   // <<< sem espaço extra
                 printed++;
             }
 
@@ -50,7 +50,6 @@ void process_task(void *p) {
         }
     }
 }
-
 
 int main() {
     stdio_init_all();
