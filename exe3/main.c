@@ -27,26 +27,23 @@ void process_task(void *p) {
     #define WINDOW_SIZE 5
     int window[WINDOW_SIZE] = {0};
     int index = 0;
-    int count = 0;
-    int sum = 0;
+    long long sum = 0; // Use a larger type for sum to prevent overflow
     int printed = 0;
 
     while (true) {
-        if (xQueueReceive(xQueueData, &data, 100)) {
+        if (xQueueReceive(xQueueData, &data, portMAX_DELAY)) {
             sum -= window[index];
+            
             window[index] = data;
             sum += data;
+            
             index = (index + 1) % WINDOW_SIZE;
-            if (count < WINDOW_SIZE) count++;
-
-            int avg = sum / count;
-
+            
             if (printed < 7) {
-                printf("%d\n", avg);   // <<< sem espaço extra
+                int avg = sum / WINDOW_SIZE;
+                printf("%d\n", avg);
                 printed++;
             }
-
-            vTaskDelay(pdMS_TO_TICKS(50));
         }
     }
 }
