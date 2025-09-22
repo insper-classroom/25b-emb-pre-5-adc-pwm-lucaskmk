@@ -27,7 +27,7 @@ void process_task(void *p) {
     #define WINDOW_SIZE 5
     int window[WINDOW_SIZE] = {0};
     int index = 0;
-    long long sum = 0; // Use a larger type for sum to prevent overflow
+    int sum = 0; // Use a larger type for sum to prevent overflow
     int printed = 0;
 
     while (true) {
