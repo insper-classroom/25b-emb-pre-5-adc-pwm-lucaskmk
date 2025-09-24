@@ -9,7 +9,6 @@
 #include "data.h"
 QueueHandle_t xQueueData;
 
-// não mexer! Alimenta a fila com os dados do sinal
 void data_task(void *p) {
     vTaskDelay(pdMS_TO_TICKS(400));
 

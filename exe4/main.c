@@ -5,7 +5,7 @@
 #include "hardware/adc.h"
 
 #define PIN_LED_B 4
-#define ADC_CH 2
+#define ADC_CH 2      
 #define VREF 3.3f
 #define ADC_MAX (1 << 12)
 
