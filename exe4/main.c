@@ -1,57 +1,60 @@
-#include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/gpio.h"
-#include "hardware/timer.h"
 #include "hardware/adc.h"
+#include "hardware/timer.h"
 
-#define LED_PIN 4
-#define ADC_PIN 28
-#define ADC_CH  2
-#define VREF    3.3f
-#define ADC_MAX (1 << 12)
+#define LED_BLUE 4
+#define ADC_GPIO 28
+#define ADC_CH   2
+#define VREF     3.3f
+#define ADC_MAX  4096.0f
 
-static repeating_timer_t timer;
+static repeating_timer_t led_timer;
 
-bool led_blink_callback(repeating_timer_t *t) {
-    bool state = gpio_get(LED_PIN);
-    gpio_put(LED_PIN, !state);
+// Callback para alternar LED
+static bool blink_cb(repeating_timer_t *rt) {
+    gpio_put(LED_BLUE, !gpio_get(LED_BLUE));
     return true;
 }
 
 int main() {
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 0);
+    // Inicialização do LED
+    gpio_init(LED_BLUE);
+    gpio_set_dir(LED_BLUE, GPIO_OUT);
+    gpio_put(LED_BLUE, 0);
 
+    // Inicialização do ADC
     adc_init();
-    adc_gpio_init(ADC_PIN);
+    adc_gpio_init(ADC_GPIO);
     adc_select_input(ADC_CH);
 
-    int current_zone = -1;
+    int zone_atual = -1;
 
     while (true) {
+        // Conversão ADC
         uint16_t raw = adc_read();
-        float voltage = raw * VREF / ADC_MAX;
+        float v = (raw * VREF) / ADC_MAX;
 
-        int zone;
-        if (voltage <= 1.0f) {
-            zone = 0;
-        } else if (voltage <= 2.0f) {
-            zone = 1;
+        // Determina a zona
+        int nova_zona;
+        if (v <= 1.0f) {
+            nova_zona = 0;
+        } else if (v <= 2.0f) {
+            nova_zona = 1;
         } else {
-            zone = 2;
+            nova_zona = 2;
         }
 
-        if (zone != current_zone) {
-            current_zone = zone;
-            cancel_repeating_timer(&timer);
+        // Só muda comportamento se zona mudou
+        if (nova_zona != zone_atual) {
+            zone_atual = nova_zona;
+            cancel_repeating_timer(&led_timer);
 
-            if (zone == 0) {
-                gpio_put(LED_PIN, 0);
-            } else if (zone == 1) {
-                add_repeating_timer_ms(300, led_blink_callback, NULL, &timer);
+            if (zone_atual == 0) {
+                gpio_put(LED_BLUE, 0); // Força LED apagado
+            } else if (zone_atual == 1) {
+                add_repeating_timer_ms(300, blink_cb, NULL, &led_timer);
             } else {
-                add_repeating_timer_ms(500, led_blink_callback, NULL, &timer);
+                add_repeating_timer_ms(500, blink_cb, NULL, &led_timer);
             }
         }
     }
