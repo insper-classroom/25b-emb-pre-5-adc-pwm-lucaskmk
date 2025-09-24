@@ -10,11 +10,18 @@
 #define ADC_MAX (1 << 12)
 
 static repeating_timer_t timer;
-static volatile int led_state = 0; // precisa ser volatile para IRQ
+static int led_state = 0;
+static int current_zone = -1; // força atualização inicial
 
 // Callback do timer
 bool timer_callback(repeating_timer_t *rt) {
-    // Apenas alterna LED, decisão de zona é feita no main
+    // Se a zona for 0, não pisca
+    if (current_zone == 0) {
+        gpio_put(PIN_LED_B, 0);
+        return true;
+    }
+
+    // Alterna estado do LED
     led_state = !led_state;
     gpio_put(PIN_LED_B, led_state);
     return true;
@@ -32,9 +39,11 @@ int main() {
     adc_gpio_init(28); // GP28
     adc_select_input(ADC_CH);
 
-    int current_zone = -1; // agora é local
+    // Timer inicial (placeholder, 300ms)
+    add_repeating_timer_ms(300, timer_callback, NULL, &timer);
 
     while (1) {
+        // Leitura do potenciômetro
         uint16_t raw = adc_read();
         float voltage = raw * VREF / ADC_MAX;
 
@@ -47,14 +56,13 @@ int main() {
             new_zone = 2;
         }
 
-        // Se mudou de zona → ajusta timer
+        // Se mudou de zona, ajusta o timer
         if (new_zone != current_zone) {
             current_zone = new_zone;
             cancel_repeating_timer(&timer);
 
             if (current_zone == 0) {
-                gpio_put(PIN_LED_B, 0); // sempre apagado
-                led_state = 0;
+                gpio_put(PIN_LED_B, 0); 
             } else if (current_zone == 1) {
                 add_repeating_timer_ms(300, timer_callback, NULL, &timer);
             } else if (current_zone == 2) {
