@@ -9,20 +9,16 @@
 #define ADC_MAX  4096.0f
 
 static repeating_timer_t led_timer;
-
-// Callback para alternar LED
 static bool blink_cb(repeating_timer_t *rt) {
     gpio_put(LED_BLUE, !gpio_get(LED_BLUE));
     return true;
 }
 
 int main() {
-    // Inicialização do LED
     gpio_init(LED_BLUE);
     gpio_set_dir(LED_BLUE, GPIO_OUT);
     gpio_put(LED_BLUE, 0);
 
-    // Inicialização do ADC
     adc_init();
     adc_gpio_init(ADC_GPIO);
     adc_select_input(ADC_CH);
@@ -30,11 +26,8 @@ int main() {
     int zone_atual = -1;
 
     while (true) {
-        // Conversão ADC
         uint16_t raw = adc_read();
         float v = (raw * VREF) / ADC_MAX;
-
-        // Determina a zona
         int nova_zona;
         if (v <= 1.0f) {
             nova_zona = 0;
@@ -43,14 +36,11 @@ int main() {
         } else {
             nova_zona = 2;
         }
-
-        // Só muda comportamento se zona mudou
         if (nova_zona != zone_atual) {
             zone_atual = nova_zona;
             cancel_repeating_timer(&led_timer);
-
             if (zone_atual == 0) {
-                gpio_put(LED_BLUE, 0); // Força LED apagado
+                gpio_put(LED_BLUE, 0);
             } else if (zone_atual == 1) {
                 add_repeating_timer_ms(300, blink_cb, NULL, &led_timer);
             } else {
