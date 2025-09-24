@@ -5,23 +5,20 @@
 #include "hardware/adc.h"
 
 #define PIN_LED_B 4
-#define ADC_CH 2        // GP28 -> ADC2
+#define ADC_CH 2 
 #define VREF 3.3f
 #define ADC_MAX (1 << 12)
 
 static repeating_timer_t timer;
 static int led_state = 0;
-static int current_zone = -1; // força atualização inicial
+static int current_zone = -1; 
 
-// Callback do timer
 bool timer_callback(repeating_timer_t *rt) {
-    // Se a zona for 0, não pisca
     if (current_zone == 0) {
         gpio_put(PIN_LED_B, 0);
         return true;
     }
 
-    // Alterna estado do LED
     led_state = !led_state;
     gpio_put(PIN_LED_B, led_state);
     return true;
@@ -30,20 +27,16 @@ bool timer_callback(repeating_timer_t *rt) {
 int main() {
     stdio_init_all();
 
-    // LED
     gpio_init(PIN_LED_B);
     gpio_set_dir(PIN_LED_B, true);
 
-    // ADC
     adc_init();
-    adc_gpio_init(28); // GP28
+    adc_gpio_init(28);
     adc_select_input(ADC_CH);
 
-    // Timer inicial (placeholder, 300ms)
     add_repeating_timer_ms(300, timer_callback, NULL, &timer);
 
     while (1) {
-        // Leitura do potenciômetro
         uint16_t raw = adc_read();
         float voltage = raw * VREF / ADC_MAX;
 
@@ -56,7 +49,6 @@ int main() {
             new_zone = 2;
         }
 
-        // Se mudou de zona, ajusta o timer
         if (new_zone != current_zone) {
             current_zone = new_zone;
             cancel_repeating_timer(&timer);
