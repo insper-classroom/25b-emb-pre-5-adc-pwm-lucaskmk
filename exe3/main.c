@@ -1,65 +1,59 @@
-#include <stdio.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
+#include <queue.h>
+
 #include "pico/stdlib.h"
-#include "hardware/gpio.h"
-#include "hardware/timer.h"
-#include "hardware/adc.h"
+#include <stdio.h>
 
-#define PIN_LED_B 4
-#define ADC_CH 2        // GP28 -> ADC2
-#define VREF 3.3f
-#define ADC_MAX (1 << 12)
+#include "data.h"
+QueueHandle_t xQueueData;
 
-static repeating_timer_t timer;
-static volatile int led_state = 0; // precisa ser volatile para IRQ
+void data_task(void *p) {
+    vTaskDelay(pdMS_TO_TICKS(400));
 
-// Callback do timer
-bool timer_callback(repeating_timer_t *rt) {
-    // Apenas alterna LED, decisão de zona é feita no main
-    led_state = !led_state;
-    gpio_put(PIN_LED_B, led_state);
-    return true;
+    int data_len = sizeof(sine_wave_four_cycles) / sizeof(sine_wave_four_cycles[0]);
+    for (int i = 0; i < data_len; i++) {
+        xQueueSend(xQueueData, &sine_wave_four_cycles[i], 1000000);
+    }
+
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
+
+void process_task(void *p) {
+    int data = 0;
+    #define WINDOW_SIZE 5
+    int window[WINDOW_SIZE] = {0};
+    int index = 0;
+    long long sum = 0;
+
+    while (true) {
+        if (xQueueReceive(xQueueData, &data, 100)) {
+            sum -= window[index];
+            window[index] = data;
+            sum += data;
+            index = (index + 1) % WINDOW_SIZE;
+
+            int avg = sum / WINDOW_SIZE;
+            printf("%d\n", avg);
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
 
 int main() {
     stdio_init_all();
 
-    // LED
-    gpio_init(PIN_LED_B);
-    gpio_set_dir(PIN_LED_B, true);
+    xQueueData = xQueueCreate(64, sizeof(int));
 
-    // ADC
-    adc_init();
-    adc_gpio_init(28); // GP28
-    adc_select_input(ADC_CH);
+    xTaskCreate(data_task, "Data task ", 4096, NULL, 1, NULL);
+    xTaskCreate(process_task, "Process task", 4096, NULL, 1, NULL);
 
-    int current_zone = -1; // agora é local
+    vTaskStartScheduler();
 
-    while (1) {
-        uint16_t raw = adc_read();
-        float voltage = raw * VREF / ADC_MAX;
-
-        int new_zone;
-        if (voltage < 1.0f) {
-            new_zone = 0;
-        } else if (voltage < 2.0f) {
-            new_zone = 1;
-        } else {
-            new_zone = 2;
-        }
-
-        // Se mudou de zona → ajusta timer
-        if (new_zone != current_zone) {
-            current_zone = new_zone;
-            cancel_repeating_timer(&timer);
-
-            if (current_zone == 0) {
-                gpio_put(PIN_LED_B, 0); // sempre apagado
-                led_state = 0;
-            } else if (current_zone == 1) {
-                add_repeating_timer_ms(300, timer_callback, NULL, &timer);
-            } else if (current_zone == 2) {
-                add_repeating_timer_ms(500, timer_callback, NULL, &timer);
-            }
-        }
-    }
+    while (true)
+        ;
 }
