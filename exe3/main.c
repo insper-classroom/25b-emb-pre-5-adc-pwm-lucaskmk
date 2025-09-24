@@ -22,31 +22,28 @@ void data_task(void *p) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
 void process_task(void *p) {
     int data = 0;
     #define WINDOW_SIZE 5
     int window[WINDOW_SIZE] = {0};
     int index = 0;
-    long long sum = 0; // Use a larger type for sum to prevent overflow
-    int printed = 0;
+    long long sum = 0;
 
     while (true) {
-        if (xQueueReceive(xQueueData, &data, portMAX_DELAY)) {
+        if (xQueueReceive(xQueueData, &data, 100)) {
             sum -= window[index];
-            
             window[index] = data;
             sum += data;
-            
             index = (index + 1) % WINDOW_SIZE;
-            
-            if (printed < 7) {
-                int avg = sum / WINDOW_SIZE;
-                printf("%d\n", avg);
-                printed++;
-            }
+
+            int avg = sum / WINDOW_SIZE;
+            printf("%d\n", avg);
         }
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
+
 
 int main() {
     stdio_init_all();
